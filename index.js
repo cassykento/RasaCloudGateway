@@ -7,7 +7,7 @@ const path = require('path');
 
 // --- Rasa Configuration ---
 // This is the Cloudflare link pointing to your local Rasa Server (Port 5005)
-const RASA_SERVER_URL = 'https://zealand-criticism-descriptions-sequences.trycloudflare.com'; 
+const RASA_SERVER_URL = 'https://shall-fool-deny-concern.trycloudflare.com'; 
 
 const SENDER_ID = 'user_unique_id_123'; // Static sender ID
 // --------------------------
