@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UTP Chatbot</title>
+  </head>
+<body>
+  <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+  
+  <df-messenger
+    intent="WELCOME"
+    chat-title="UTP Virtual Assistant"
+    agent-id="40518451281" 
+    language-code="en"
+  ></df-messenger>
+
+  <script>
+    // CRITICAL: Ensure your Node.js server is running on this URL
+    const backendURL = "http://localhost:3000/api/message"; 
+    
+    // Wait for the Dialogflow Messenger widget to fully load
+    window.addEventListener('dfMessengerLoaded', function (event) {
+      const dfMessenger = document.querySelector('df-messenger');
+
+      // Listen for when the user sends a message through the widget
+      dfMessenger.addEventListener('df-request-sent', async function (e) {
+        const userMessage = e.detail.requestText;
+
+        // ----------------------------------------------------
+        // 1. Send the user message to your custom Node.js backend
+        // ----------------------------------------------------
+        const response = await fetch(backendURL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // FIX CONFIRMED: Payload uses the 'message' key
+          body: JSON.stringify({ message: userMessage })
+        });
+
+        const data = await response.json();
+
+        // ----------------------------------------------------
+        // 2. Display the reply received from your backend inside the widget
+        // ----------------------------------------------------
+        dfMessenger.renderCustomText(data.reply);
+      });
+    });
+  </script>
+</body>
+</html>
