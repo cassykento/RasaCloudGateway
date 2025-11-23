@@ -1,50 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UTP Chatbot</title>
-  </head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTP Assistant Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 420px;
+            height: 90vh;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 1rem;
+            overflow: hidden;
+            background-color: white;
+        }
+        .chat-header {
+            padding: 1rem;
+            background-color: #1e3a8a; /* Dark Blue Header */
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            border-top-left-radius: 1rem;
+            border-top-right-radius: 1rem;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        .status-online { background-color: #10b981; } /* Green */
+        .status-offline { background-color: #f59e0b; } /* Yellow/Amber for connecting */
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background-color: #ffffff;
+            /* Scrollbar styling for a cleaner look */
+            scrollbar-width: thin;
+            scrollbar-color: #9ca3af #f7f9fb;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f7f9fb;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: #9ca3af;
+            border-radius: 20px;
+            border: 2px solid #f7f9fb;
+        }
+
+        .message {
+            margin-bottom: 0.75rem;
+            max-width: 80%;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            line-height: 1.4;
+        }
+        .user-message {
+            background-color: #3b82f6; /* Blue for user */
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 0.25rem;
+        }
+        .bot-message {
+            background-color: #e5e7eb; /* Light gray for bot */
+            color: #1f2937;
+            margin-right: auto;
+            border-bottom-left-radius: 0.25rem;
+        }
+        .chat-input {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .chat-input input:focus {
+            border-color: #3b82f6;
+        }
+        .chat-input button {
+            background-color: #1e3a8a; /* Dark Blue Button */
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .chat-input button:hover {
+            background-color: #10b981; /* Green hover */
+        }
+        .chat-input button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
 <body>
-  <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
-  
-  <df-messenger
-    intent="WELCOME"
-    chat-title="UTP Virtual Assistant"
-    agent-id="40518451281" 
-    language-code="en"
-  ></df-messenger>
 
-  <script>
-    // CRITICAL: Ensure your Node.js server is running on this URL
-    const backendURL = "http://localhost:3000/api/message"; 
-    
-    // Wait for the Dialogflow Messenger widget to fully load
-    window.addEventListener('dfMessengerLoaded', function (event) {
-      const dfMessenger = document.querySelector('df-messenger');
+<div class="chat-container">
+    <div class="chat-header">
+        UTP Assistant Chatbot
+        <div class="text-sm flex items-center">
+            <span id="status-dot" class="status-dot status-offline"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
+    </div>
+    <div id="messages" class="chat-messages">
+        <!-- Initial Welcome Message -->
+        <div class="message bot-message">
+            Welcome! I am the UTP Assistant Chatbot powered by Rasa. Ask me anything about UTP.
+        </div>
+    </div>
+    <div class="chat-input">
+        <input type="text" id="userInput" placeholder="Type your message..." autofocus>
+        <button id="sendButton">Send</button>
+    </div>
+</div>
 
-      // Listen for when the user sends a message through the widget
-      dfMessenger.addEventListener('df-request-sent', async function (e) {
-        const userMessage = e.detail.requestText;
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const messagesDiv = document.getElementById('messages');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
 
-        // ----------------------------------------------------
-        // 1. Send the user message to your custom Node.js backend
-        // ----------------------------------------------------
-        const response = await fetch(backendURL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // FIX CONFIRMED: Payload uses the 'message' key
-          body: JSON.stringify({ message: userMessage })
+        // Use the relative path because the gateway serves the HTML on the same host
+        const API_ENDPOINT = '/api/message';
+
+        // Function to scroll messages to the bottom
+        const scrollToBottom = () => {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        // Function to display a message
+        const displayMessage = (text, sender) => {
+            const msgElement = document.createElement('div');
+            msgElement.className = `message ${sender}-message`;
+            msgElement.textContent = text;
+            messagesDiv.appendChild(msgElement);
+            scrollToBottom();
+        };
+
+        // Function to handle the message sending
+        const sendMessage = async () => {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            // 1. Display User Message
+            displayMessage(message, 'user');
+            userInput.value = '';
+            sendButton.disabled = true;
+            userInput.disabled = true;
+            
+            try {
+                // 2. Send to Cloud Gateway
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message }),
+                });
+
+                // 3. Update Status to Online (since the connection succeeded)
+                statusDot.classList.remove('status-offline');
+                statusDot.classList.add('status-online');
+                statusText.textContent = 'Online';
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data && data.length > 0) {
+                        // Display all responses from Rasa
+                        data.forEach(msg => {
+                            if (msg.text) {
+                                displayMessage(msg.text, 'bot');
+                            }
+                        });
+                    } else {
+                        displayMessage("Sorry, I didn't get a response from the Rasa server.", 'bot');
+                    }
+                } else {
+                    // Handle errors from the gateway (e.g., if the gateway can't reach Rasa)
+                    const errorResponse = await response.json();
+                    const errorMessage = errorResponse?.[0]?.text || `Error: ${response.statusText}`;
+                    displayMessage(`Error: ${errorMessage}`, 'bot');
+                    statusText.textContent = 'Error';
+                    statusDot.classList.remove('status-online');
+                    statusDot.classList.add('status-offline');
+                }
+
+            } catch (error) {
+                // Handle network errors (e.g., Render server is down or Cloudflare tunnel closed)
+                console.error('Network Error:', error);
+                displayMessage('Network Error: The connection to the gateway failed. Please ensure your local Rasa and Cloudflare tunnel are running.', 'bot');
+                statusText.textContent = 'Disconnected';
+                statusDot.classList.remove('status-online');
+                statusDot.classList.add('status-offline');
+
+            } finally {
+                sendButton.disabled = false;
+                userInput.disabled = false;
+                userInput.focus();
+            }
+        };
+
+        // Event Listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
         });
-
-        const data = await response.json();
-
-        // ----------------------------------------------------
-        // 2. Display the reply received from your backend inside the widget
-        // ----------------------------------------------------
-        dfMessenger.renderCustomText(data.reply);
-      });
     });
-  </script>
+</script>
 </body>
 </html>
